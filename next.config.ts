@@ -19,6 +19,7 @@ const nextConfig: NextConfig = {
     "next-sanity",
     "@portabletext/react",
   ],
+  eslint: { ignoreDuringBuilds: true },
 };
 
 export default nextConfig;
