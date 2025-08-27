@@ -29,7 +29,12 @@ async function getModelData(modelSlug: string) {
   return { model, trims }
 }
 
-export default async function Page({ params }: { params: { brand: string; model: string } }) {
+export default async function Page({
+  params,
+}: {
+  params: { brand: string; model: string }
+  searchParams?: { [key: string]: string | string[] | undefined }
+}) {
   const { brand, model: modelSlug } = params
   const { model, trims } = await getModelData(modelSlug)
 
