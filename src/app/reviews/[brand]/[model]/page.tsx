@@ -1,13 +1,11 @@
-// Server Component — do NOT add 'use client'
+export const dynamic = 'force-dynamic';
 
 import Link from "next/link";
 import TrimSelector from "./TrimSelector";
 import ShareButton from "../../../../components/ShareButton";
 import { client } from "../../../../../sanity/lib/client";
 
-// --- Data fetchers ---
 async function getModel(modelSlug: string) {
-  // Try by slug, then fall back by modelName (case-insensitive)
   const bySlug = await client.fetch(
     `*[_type=="carModel" && slug.current == $slug][0]{
       _id,
@@ -20,7 +18,6 @@ async function getModel(modelSlug: string) {
     }`,
     { slug: modelSlug }
   );
-
   if (bySlug) return bySlug;
 
   const byName = await client.fetch(
@@ -35,12 +32,10 @@ async function getModel(modelSlug: string) {
     }`,
     { slug: modelSlug }
   );
-
   return byName ?? null;
 }
 
 async function getTrimsForModel(target: string) {
-  // target can be model slug or modelName
   const trims = await client.fetch(
     `*[_type=="carTrim" && (model->slug.current == $target || lower(model->modelName) == lower($target))]|order(_createdAt asc){
       _id, trimName, priceTHB,
@@ -60,7 +55,6 @@ async function getTrimsForModel(target: string) {
   return trims as any[];
 }
 
-// --- Keep typing loose to dodge rogue PageProps constraint on Vercel build ---
 export default async function Page(props: any) {
   const { params } = props as { params: { brand: string; model: string } };
   const { model } = params;
@@ -79,20 +73,14 @@ export default async function Page(props: any) {
     );
   }
 
-  // Use model slug if present, otherwise fallback to modelName for trims query
   const target = modelDoc?.slug?.current ?? modelDoc?.modelName ?? model;
-
   const trims = await getTrimsForModel(target);
 
   return (
     <div className="container mx-auto max-w-6xl space-y-6 px-4 py-6">
-      {/* Breadcrumb + share */}
       <div className="flex items-center justify-between">
         <nav className="text-sm text-gray-600">
-          <Link href="/reviews" className="hover:underline">
-            รีวิวรถ
-          </Link>{" "}
-          &gt; {modelDoc?.brand?.name ?? "-"} &gt; {modelDoc?.modelName ?? "-"}
+          <Link href="/reviews" className="hover:underline">รีวิวรถ</Link> &gt; {modelDoc?.brand?.name ?? "-"} &gt; {modelDoc?.modelName ?? "-"}
         </nav>
         <ShareButton className="ml-3" />
       </div>
