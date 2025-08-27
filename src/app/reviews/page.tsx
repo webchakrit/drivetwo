@@ -2,12 +2,11 @@
 // Server Component — do NOT add 'use client'
 
 import Link from "next/link";
-import TrimSelector from "./[brand]/[model]/TrimSelector";
+import TrimSelector from "./TrimSelector";
 import ShareButton from "@/components/ShareButton";
 
-// Your project already imports the Sanity client relatively (like '../../../sanity/lib/client' in /reviews/page.tsx).
-// From this file’s depth, the correct relative path to sanity/lib/client is:
-import { client } from "../../../sanity/lib/client";
+// From this depth, reach project-root/sanity/lib/client:
+import { client } from "../../../../../sanity/lib/client";
 
 // --- Data fetchers ---
 async function getModel(modelSlug: string) {
@@ -64,13 +63,9 @@ async function getTrimsForModel(target: string) {
   return trims as any[];
 }
 
-// --- Correct App Router signature (no custom PageProps, no Promise on params) ---
-export default async function Page({
-  params,
-}: {
-  params: { brand: string; model: string };
-  searchParams?: { [key: string]: string | string[] | undefined };
-}) {
+// --- Page component (loosen typing to avoid bad PageProps constraint) ---
+export default async function Page(props: any) {
+  const { params } = props as { params: { brand: string; model: string } };
   const { model } = params;
 
   // Fetch model first
