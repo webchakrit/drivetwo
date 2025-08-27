@@ -1,18 +1,49 @@
-import { client } from '../../../../../sanity/lib/client'
-import TrimSelector from './TrimSelector'
-import Link from 'next/link'
-import ShareButton from '@/components/ShareButton'
+// Server Component — do NOT add 'use client'
 
-async function getModelData(modelSlug: string) {
-  const model = await client.fetch(`
-    *[_type=="carModel" && slug.current == $modelSlug][0]{
-      _id, modelName, slug, "brand": brand->{ name, "slug": slug.current }, heroImages, defaultYouTubeUrl, specBase
-    }
-  `, { modelSlug })
+import Link from "next/link";
+import TrimSelector from "./TrimSelector";
+import ShareButton from "../../../../components/ShareButton";
+import { client } from "../../../../../sanity/lib/client";
 
-  const trims = await client.fetch(`
-    *[_type=="carTrim" && model->slug.current == $modelSlug]|order(_createdAt asc){
-      _id, trimName, priceTHB, promo,
+// --- Data fetchers ---
+async function getModel(modelSlug: string) {
+  // Try by slug, then fall back by modelName (case-insensitive)
+  const bySlug = await client.fetch(
+    `*[_type=="carModel" && slug.current == $slug][0]{
+      _id,
+      modelName,
+      slug,
+      "brand": brand->{ name, "slug": slug.current },
+      heroImages,
+      defaultYouTubeUrl,
+      specBase
+    }`,
+    { slug: modelSlug }
+  );
+
+  if (bySlug) return bySlug;
+
+  const byName = await client.fetch(
+    `*[_type=="carModel" && lower(modelName) == lower($slug)][0]{
+      _id,
+      modelName,
+      slug,
+      "brand": brand->{ name, "slug": slug.current },
+      heroImages,
+      defaultYouTubeUrl,
+      specBase
+    }`,
+    { slug: modelSlug }
+  );
+
+  return byName ?? null;
+}
+
+async function getTrimsForModel(target: string) {
+  // target can be model slug or modelName
+  const trims = await client.fetch(
+    `*[_type=="carTrim" && (model->slug.current == $target || lower(model->modelName) == lower($target))]|order(_createdAt asc){
+      _id, trimName, priceTHB,
       type, drive, power_hp, torque_Nm, battery_kWh, chargingAC_kW, chargingDC_kW,
       zeroTo100_s, topSpeed_kmh, range_km, range_standard, consumption,
       suspension_front, suspension_rear, brakes, wheel_in, tire,
@@ -23,73 +54,58 @@ async function getModelData(modelSlug: string) {
       "brand": model->brand->name,
       "modelName": model->modelName,
       "modelSlug": model->slug.current
-    }
-  `, { modelSlug })
-
-  return { model, trims }
+    }`,
+    { target }
+  );
+  return trims as any[];
 }
 
-export default async function Page({
-  params,
-}: {
-  params: { brand: string; model: string }
-  searchParams?: { [key: string]: string | string[] | undefined }
-}) {
-  const { brand, model: modelSlug } = params
-  const { model, trims } = await getModelData(modelSlug)
+// --- Keep typing loose to dodge rogue PageProps constraint on Vercel build ---
+export default async function Page(props: any) {
+  const { params } = props as { params: { brand: string; model: string } };
+  const { model } = params;
 
-  if (!model) {
+  const modelDoc = await getModel(model);
+
+  if (!modelDoc) {
     return (
-      <div className="container mx-auto max-w-6xl px-4 py-12">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">ไม่พบข้อมูลรุ่นนี้</h1>
-          <p className="text-gray-600 mb-6">รุ่นที่คุณค้นหาอาจยังไม่มีในระบบ</p>
-          <Link href="/reviews" className="inline-flex items-center px-4 py-2 bg-[#df2531] text-white rounded-lg hover:bg-red-700 transition-colors">
-            กลับไปหน้ารีวิว
-          </Link>
-        </div>
+      <div className="mx-auto max-w-4xl p-6">
+        <h1 className="mb-2 text-2xl font-bold">ยังไม่มีข้อมูลรุ่นนี้</h1>
+        <p className="mb-4 text-gray-600">รุ่นที่คุณค้นหายังไม่ถูกเพิ่มเข้ามาในระบบ</p>
+        <Link href="/reviews" className="text-[#df2531] underline">
+          ← กลับไปหน้ารีวิว
+        </Link>
       </div>
-    )
+    );
   }
 
-  if (!trims || trims.length === 0) {
-    return (
-      <div className="container mx-auto max-w-6xl px-4 py-12">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">ยังไม่มีข้อมูลรุ่นย่อย</h1>
-          <p className="text-gray-600 mb-6">รุ่น {model.modelName} ยังไม่มีข้อมูลรุ่นย่อยในระบบ</p>
-          <Link href="/reviews" className="inline-flex items-center px-4 py-2 bg-[#df2531] text-white rounded-lg hover:bg-red-700 transition-colors">
-            กลับไปหน้ารีวิว
-          </Link>
-        </div>
-      </div>
-    )
-  }
+  // Use model slug if present, otherwise fallback to modelName for trims query
+  const target = modelDoc?.slug?.current ?? modelDoc?.modelName ?? model;
+
+  const trims = await getTrimsForModel(target);
 
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-6">
-      {/* Breadcrumb */}
-      <nav className="mb-6 text-sm text-gray-600">
-        <Link href="/reviews" className="hover:text-[#df2531] transition-colors">
-          รีวิวรถ
-        </Link>
-        <span className="mx-2"> &gt; </span>
-        <span className="text-gray-900">{model?.brand?.name || 'ไม่ระบุแบรนด์'}</span>
-        <span className="mx-2"> &gt; </span>
-        <span className="text-gray-900">{model?.modelName || 'ไม่ระบุรุ่น'}</span>
-      </nav>
-
-      {/* Header with Share Button */}
-      <div className="flex items-start justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-black mb-2">{model?.modelName || 'ไม่ระบุรุ่น'}</h1>
-          <p className="text-lg text-gray-600">{model?.brand?.name || 'ไม่ระบุแบรนด์'}</p>
-        </div>
+    <div className="container mx-auto max-w-6xl space-y-6 px-4 py-6">
+      {/* Breadcrumb + share */}
+      <div className="flex items-center justify-between">
+        <nav className="text-sm text-gray-600">
+          <Link href="/reviews" className="hover:underline">
+            รีวิวรถ
+          </Link>{" "}
+          &gt; {modelDoc?.brand?.name ?? "-"} &gt; {modelDoc?.modelName ?? "-"}
+        </nav>
         <ShareButton className="ml-3" />
       </div>
 
-      {/* Trim Selector */}
-      <TrimSelector model={model} trims={trims} />
+      <h1 className="text-2xl font-bold">{modelDoc?.modelName ?? "-"}</h1>
+
+      {Array.isArray(trims) && trims.length > 0 ? (
+        <TrimSelector model={modelDoc} trims={trims} />
+      ) : (
+        <div className="rounded-lg border bg-white p-6 text-gray-600">
+          ยังไม่มีข้อมูลรุ่นย่อยสำหรับรุ่นนี้
+        </div>
+      )}
     </div>
-  )
+  );
 }

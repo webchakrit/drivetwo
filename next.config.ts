@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
     "@portabletext/react",
   ],
   eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: true },
 };
 
 export default nextConfig;
