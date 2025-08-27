@@ -30,7 +30,8 @@ async function getModelData(modelSlug: string) {
 }
 
 export default async function Page({ params }: { params: { brand: string; model: string } }) {
-  const { model, trims } = await getModelData(params.model)
+  const { brand, model: modelSlug } = params
+  const { model, trims } = await getModelData(modelSlug)
 
   if (!model) {
     return (
