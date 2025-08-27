@@ -2,11 +2,11 @@
 // Server Component — do NOT add 'use client'
 
 import Link from "next/link";
-import TrimSelector from "./TrimSelector";
+import TrimSelector from "./[brand]/[model]/TrimSelector";
 import ShareButton from "@/components/ShareButton";
 
 // From this depth, reach project-root/sanity/lib/client:
-import { client } from "../../../../../sanity/lib/client";
+import { client } from "../../../sanity/lib/client";
 
 // --- Data fetchers ---
 async function getModel(modelSlug: string) {
